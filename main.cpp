@@ -1,185 +1,274 @@
 #include <iostream>
-#include <string>
-#include <vector>
-#include <algorithm>
-void print(std::string str){
-    for (size_t i = 0; i < str.size();++i) {
-        std::cout << str[i];
-    }
-    std::cout << std::endl;
+#include <stack> // Используем стек
+#include <string> // Строки
+#include <sstream> // Рассматриваем строку как поток, преобразовываем её элементы в числовой тип данных при необходимости
+#include <cmath> // Используем математику
+#ifndef M_PI // Объявляем константу Пи
+#define M_PI (3.14159265358979323846)
+#endif
+struct Leksema { // Лексема - Неделимый элемент выражения (формулы)
+    char type; // '(' ')' '+' '-' '*' '/'  0 - число
+    double value; //Значение (только для чисел). У операций значение всегда "0"
+};
+int getPriority(char Ch) { // Определяем приоритет операций
+    if (Ch == '+' || Ch == '-') return 1;
+    if (Ch == '*' || Ch == '/') return 2;
+    if (Ch == '^') return 3;
+    if (Ch == 's' || Ch == 'c' || Ch == 't' || Ch == 'g' || Ch == 'e') return 4;
+    else return -1;
 }
-void printvec(std::vector<char> str) {
-    for (size_t i = 0; i < str.size();++i) {
-        std::cout << str[i];
-    }
-    std::cout << std::endl;
-}
-void printdouble(std::vector<double> str) {
-    for (size_t i = 0; i < str.size();++i) {
-        std::cout << str[i]<<' ';
-    }
-    std::cout << std::endl;
-}
-void answer(double str) {
-    std::cout << str << std::endl;
-    std::cout << std::endl;
-}
-
-double result_case(std::vector<char> parsed_signs, std::vector<double> parsed_nums) {
+bool calculations(std::stack<Leksema>& stack_numbers, std::stack<Leksema>& stack_operations, Leksema& item) { // Расчеты
+    double first = 0.0;
+    double second = 0.0;
     double result = 0.0;
-    for (size_t i = 0; i < parsed_signs.size();++i) {
-        if (parsed_signs[i] == '*') {
-            result = parsed_nums[i];
+    first = stack_numbers.top().value; // Присваиваем переменной значение элемента на вершине стека
+    stack_numbers.pop(); // Удаляем элемент с вершины стека
+    switch (stack_operations.top().type) { // Переключатель в зависимости от операции
+    case '+': // Сложение
+        second = stack_numbers.top().value; // Присваиваем переменной значение элемента на вершине стека
+        stack_numbers.pop(); // Удаляем элемент с вершины стека
+        result = first + second; // Результат операции сложения
+        item.type = '0'; // Присваиваем объекту тип "0", так как возвращаем число
+        item.value = result; // Присваиваем объекту значение результата операции
+        stack_numbers.push(item); // Добавляем число в стек с числами
+        stack_operations.pop(); // Удаляем операцию сложения из стека
+        break;
+    case '-':
+        second = stack_numbers.top().value; // Аналогично с операцией сложения
+        stack_numbers.pop();
+        result = second - first;
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    case '*':
+        second = stack_numbers.top().value; // Аналогично с операцией сложения
+        stack_numbers.pop();
+        result = first * second;
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    case '/':
+        second = stack_numbers.top().value; // Аналогично с операцией сложения
+        if (second == 0) { // Ошибка в случае деления на ноль
+            std::cerr << "Incorrect equasion - division by zero :(\n";
+            return false;
+        }
+        else {
+            stack_numbers.pop();
+            result = second / first;
+            item.type = '0';
+            item.value = result;
+            stack_numbers.push(item);
+            stack_operations.pop();
+            break; 
+        }
+    case '^':
+        second = stack_numbers.top().value; // Аналогично с операцией сложения
+        stack_numbers.pop();
+        result = pow(second, first);
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    case 's':
+        result = sin(first); // Вычисляем синус первого элемента с вершины стека
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    case 'c':
+        result = cos(first); // Аналогично с синусом
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    case 't':
+        if (cos(first) == 0) { // Случай, когда тангенс не существует
+            std::cerr << "Tan doesn't exist\n";
+            return false;
+        }
+        else {
+            result = tan(first); // Аналогично с синусом
+            item.type = '0';
+            item.value = result;
+            stack_numbers.push(item);
+            stack_operations.pop();
             break;
         }
-        else if (parsed_nums[i] == '/') {
-            result = parsed_nums[i];
+    case 'g':
+        if (sin(first) == 0) { // Случай, когда котангенс не существует
+            std::cerr << "Ctg doesn't exist\n";
+            return false;
+        }
+        else {
+            result = cos(first) / sin(first); // Вычисляем значение котангенса
+            item.type = '0';
+            item.value = result;
+            stack_numbers.push(item);
+            stack_operations.pop();
             break;
         }
-        else if (parsed_nums[i] == '+') {
-            result = parsed_nums[i];
-            break;
-        }
-        else if (parsed_nums[i] == '-') {
-            result = parsed_nums[i];
-            break;
-        }
+    case 'e':
+        result = exp(first); // Экспонента
+        item.type = '0';
+        item.value = result;
+        stack_numbers.push(item);
+        stack_operations.pop();
+        break;
+    default:
+        std::cerr << "Incorrect equasion! :<\n"; // Случай, когда символ не подходит ни под одну из операций
+        return false;
+        break;
     }
-    return result;
-}
-std::vector<double> recursive_res(std::vector<char> parsed_signs, std::vector<double> parsed_nums) {
-    size_t i = 0;
-    while (i < parsed_signs.size()) {
-        double temp = 0.0;
-        bool flag = false;
-        if (flag) {
-            recursive_res( parsed_signs, parsed_nums);
-            return parsed_nums;
-        }
-        switch (parsed_signs[i]) {
-        case '*':
-            temp = parsed_nums[i] * parsed_nums[i + 1];
-            parsed_nums[i] = temp;
-            parsed_nums.erase(parsed_nums.begin() + i + 1);
-            flag = true;
-            ++i;
-            printdouble(parsed_nums);
-            break;
-        case '/':
-            if (parsed_nums[i + 1] != 0) {
-                temp = parsed_nums[i] / parsed_nums[i + 1];
-                parsed_nums[i] = temp;
-                parsed_nums.erase(parsed_nums.begin() + i + 1);
-                flag = true;
-                ++i;
-                printdouble(parsed_nums);
-                break;
-            }
-            else {
-                std::cerr << "Incorrect equasion - division by zero :(\n";
-                system("pause");
-            }
-        }
-    }
+    return true; // В случае корректных вычислений возвращаем true
 }
 int main()
 {
-
-    std::cout << "Enter equasion: ";
-    std::string equasion;
-    std::getline(std::cin, equasion);
-    equasion += '+';
-    size_t i = 0;
-    std::vector<double> parsed_nums;
-    std::vector<char> parsed_signs;
-    std::string temp = "";
-    while (i < equasion.size()) {
-        if (i == 0 && equasion[i] == '-') {
-            temp += equasion[i];
-            i += 1;
-        }
-        if (equasion[i] != '+' && equasion[i] != '-' && equasion[i] != '*' && equasion[i] != '/') {
-            if (isdigit(equasion[i])) {
-                temp += equasion[i];
-                i += 1;
+    setlocale(LC_ALL, "russian");
+    std::cout << "Welcome to calculator\n";
+    std::cout << "You can use these operations: '+', '-', '*', '/', '^'\n";
+    std::cout << "To use 'sin', 'cos', 'tan', 'ctg' type these words letter by letter like i did there\n";
+    std::cout << "To use the E number type 'exp'\n";
+    std::cout << "To use the Pi number type 'p'\n";
+    while (true) {
+        std::cout << "Input equasion: ";
+        std::string equasion; // Строка с выражением
+        std::getline(std::cin, equasion); // Получаем строку
+        std::stringstream sequasion{ equasion }; // Рассматриваем строку как поток, преобразовываем её элементы в числовой тип данных при необходимости
+        char Ch; //Переменная, в которую будет записываться текущий обрабатываемый символ
+        double value;
+        bool flag = true; //Нужен для того, чтобы программа смогла отличить унарный минус (-5) от вычитания (2-5)
+        std::stack<Leksema> stack_numbers; // Стек чисел
+        std::stack<Leksema> stack_operations; // Стек операций
+        Leksema item; // Объект типа Leksema
+        while (true) {
+            Ch = sequasion.peek(); // Смотрим символ
+            if (Ch == '\377') break; //Если достигнут конец строки, выходим из цикла
+            if (Ch == ' ') { // Игнорируем пробелы
+                sequasion.ignore();
+                continue;
+            }
+            if (Ch >= '0' && Ch <= '9' || Ch == '-' && flag == true) { // Если прочитано число или унарный минус
+                sequasion >> value; // Считываем значение
+                item.type = '0';
+                item.value = value;
+                stack_numbers.push(item);
+                flag = false;
+                continue;
+            }
+            if (Ch == '+' || Ch == '-' && flag == false || Ch == '*' || Ch == '/' || Ch == '^') { // Если прочитана операция
+                if (stack_operations.size() == 0) { // Если стек операций пустой, добавляем операцию
+                    item.type = Ch; 
+                    item.value = 0;
+                    stack_operations.push(item);
+                    sequasion.ignore();
+                    continue;
+                }// Если стек непустой и приоритет операции выше приоритета на вершине стека, добавляем операцию в стек
+                if (stack_operations.size() != 0 && getPriority(Ch) > getPriority(stack_operations.top().type)) { 
+                    item.type = Ch;
+                    item.value = 0;
+                    stack_operations.push(item);
+                    sequasion.ignore();
+                    continue;
+                }// Если стек непустой и приоритет операции меньше приоритета на вершине стека, вычисляем выражение
+                if (stack_operations.size() != 0 && getPriority(Ch) <= getPriority(stack_operations.top().type)) {
+                    if (calculations(stack_numbers, stack_operations, item)) continue;
+                    else {
+                        system("pause");
+                        return -1;
+                    }
+                }
+            }
+            if (Ch == 's' || Ch == 'c' || Ch == 't' || Ch == 'e') { // Тригонометрические операции и экспонента
+                char massive[3];
+                for (int i = 0; i < 3; ++i) { // Создаем временный массив на три элемента и считываем в него три символа из строки
+                    Ch = sequasion.peek();
+                    massive[i] = Ch;
+                    sequasion.ignore();
+                }
+                if (massive[0] == 's' && massive[1] == 'i' && massive[2] == 'n') { // Если считан синус, добавляем операцию в стек
+                    item.type = 's';
+                    item.value = 0;
+                    stack_operations.push(item);
+                    continue;
+                }
+                if (massive[0] == 'c' && massive[1] == 'o' && massive[2] == 's') { // Косинус аналогично синусу
+                    item.type = 'c';
+                    item.value = 0;
+                    stack_operations.push(item);
+                    continue;
+                }
+                if (massive[0] == 't' && massive[1] == 'a' && massive[2] == 'n') { // Тангенс аналогично синусу
+                    item.type = 't';
+                    item.value = 0;
+                    stack_operations.push(item);
+                    continue;
+                }
+                if (massive[0] == 'c' && massive[1] == 't' && massive[2] == 'g') { // Котангенс аналогично синусу
+                    item.type = 'c';
+                    item.value = 0;
+                    stack_operations.push(item);
+                    continue;
+                }
+                if (massive[0] == 'e' && massive[1] == 'x' && massive[2] == 'p') { // Экспонента аналогично синусу
+                    item.type = 'e';
+                    item.value = 0;
+                    stack_operations.push(item);
+                    continue;
+                }
+            }
+            if (Ch == 'p') { // Если считано число пи, добавляем его в стек чисел
+                item.type = '0';
+                item.value = M_PI;
+                stack_numbers.push(item);
+                flag = false;
+                sequasion.ignore();
+                continue;
+            }
+            if (Ch == '(') { // Если считана открывающая скобка, добавляем в стек с операциями
+                item.type = Ch;
+                item.value = 0;
+                stack_operations.push(item);
+                sequasion.ignore();
+                continue;
+            }
+            if (Ch == ')') { // Если считана закрывающая скобка
+                // Идем по стеку операций, пока его верхний элемент не станет открывающей скобко и последовательно выполняем операции с вершины
+                while (stack_operations.top().type != '(') { 
+                    if (calculations(stack_numbers, stack_operations, item)) continue;
+                    else {
+                        system("pause");
+                        return -1;
+                    }
+                }
+                stack_operations.pop(); // Удаляем скобку с вершины стека операций
+                sequasion.ignore();
+                continue;
             }
             else {
-                std::cerr << "Incorrect equasion :(\n";
+                std::cerr << "Incorrect equasion :(\n";// Если введено непонятное выражение
                 system("pause");
                 return -1;
             }
+            
         }
-        else {
-            if (temp.size() > 0) {
-                parsed_nums.push_back(stod(temp));
+            while (stack_operations.size() != 0) { // Выполняем операции до тех пор, пока стек с ними не пуст или пока выражение не окажется неверным
+                if (calculations(stack_numbers, stack_operations, item)) continue;
+                else {
+                    system("pause");
+                    return -1;
+                }
             }
-            temp = "";
-            parsed_signs.push_back(equasion[i]);
-            i += 1;
-        }
-    }
-    parsed_signs.pop_back();
-    print(equasion);
-    printvec(parsed_signs);
-    printdouble(parsed_nums);
-    if (parsed_signs.size() >= parsed_nums.size()) {
-        std::cerr << "Incorrect equasion :(\n";
+        std::cout << "answer: " << stack_numbers.top().value << std::endl; // Пишем ответ
         system("pause");
-        return -1;
     }
-    double result = 0.0;//result_case(parsed_signs, parsed_nums);
-    answer(result);
-    /*for (size_t i = 0; i < parsed_signs.size(); ++i) {
-        double temp = 0.0;
-        switch (parsed_signs[i]) {
-        case '*':
-            temp = parsed_nums[i] * parsed_nums[i + 1];
-            parsed_nums[i] = temp;
-            parsed_nums.erase(parsed_nums.begin() + i+1);
-            printdouble(parsed_nums);
-            break;
-        case '/':
-            if (parsed_nums[i + 1] != 0) {
-                temp = parsed_nums[i] / parsed_nums[i + 1];
-                parsed_nums[i] = temp;
-                parsed_nums.erase(parsed_nums.begin() + i + 1);
-                printdouble(parsed_nums);
-                break;
-            }
-            else {
-                std::cerr << "Incorrect equasion - division by zero :(\n";
-                system("pause");
-                return -1;
-            }
-        }
-    }*/
-    std::vector<double> peparsed_nums = recursive_res(parsed_signs, parsed_nums);
-    std::cout << "OH";
-    printdouble(peparsed_nums);
-    printdouble(parsed_nums);
-    printvec(parsed_signs);
-        for (size_t i = 0; i < parsed_signs.size(); ++i) {
-            double temp = 0.0;
-            switch (parsed_signs[i]) {
-                case '+':
-                    temp = parsed_nums[i] + parsed_nums[i + 1];
-                    parsed_nums[i] = temp;
-                    parsed_nums.erase(parsed_nums.begin() + i + 1);
-                    printdouble(parsed_nums);
-                    break;
-                case '-':
-                    temp = parsed_nums[i] - parsed_nums[i + 1];
-                    parsed_nums[i] = temp;
-                    parsed_nums.erase(parsed_nums.begin() + i + 1);
-                    printdouble(parsed_nums);
-                    break;
-            }
-        }
-        std::cout << "Parsed nums: ";
-        printdouble(parsed_nums);
-        /*for (size_t i = 0; i < parsed_signs.size(); ++i) {
-            result += parsed_nums[i];
-        }*/
-        answer(result);
-        return 0;
-    }
+    
+    return 0;
+}
